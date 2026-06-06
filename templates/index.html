@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中医舌诊识别系统</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🩺 中医舌诊识别系统</h1>
+            <p class="subtitle">上传舌头照片，AI 自动分析舌象特征</p>
+        </header>
+
+        <div class="main-grid">
+            <!-- Left: Image Upload -->
+            <div class="card upload-section">
+                <h2>📷 上传舌部照片</h2>
+
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-placeholder" id="placeholder">
+                        <div class="upload-icon">👅</div>
+                        <p>点击上传或拖放图片</p>
+                        <p class="hint">支持 JPG / PNG，请在自然光下拍摄</p>
+                    </div>
+                    <img id="preview" style="display:none" alt="Preview">
+                    <input type="file" id="fileInput" accept="image/*" capture="environment">
+                </div>
+
+                <div class="upload-tips">
+                    <h4>📋 拍摄建议</h4>
+                    <ul>
+                        <li>✅ 在自然光下，面对光源</li>
+                        <li>✅ 舌头自然伸出，放松平展</li>
+                        <li>✅ 舌头占画面 50% 以上</li>
+                        <li>❌ 避免闪光灯直射</li>
+                        <li>❌ 不要使用美颜滤镜</li>
+                    </ul>
+                </div>
+
+                <button class="btn-analyze" id="analyzeBtn" disabled>
+                    🔍 开始分析
+                </button>
+                <div class="loading" id="loading" style="display:none">
+                    <div class="spinner"></div>
+                    <p>正在分析舌象…</p>
+                </div>
+            </div>
+
+            <!-- Right: Results -->
+            <div class="card results-section" id="resultsSection">
+                <h2>📊 分析结果</h2>
+                <div class="no-results" id="noResults">
+                    <div class="no-results-icon">🔬</div>
+                    <p>上传舌部照片后<br>结果将显示在此处</p>
+                </div>
+
+                <div id="resultsContent" style="display:none">
+                    <!-- Summary -->
+                    <div class="result-summary" id="resultSummary"></div>
+
+                    <!-- Findings -->
+                    <div class="findings-list" id="findingsList"></div>
+
+                    <!-- Features Table -->
+                    <h3>📋 舌象特征数据</h3>
+                    <div class="features-table" id="featuresTable"></div>
+
+                    <!-- Health Advice -->
+                    <h3>💊 养生建议</h3>
+                    <ul class="advice-list" id="adviceList"></ul>
+
+                    <!-- Captured Image -->
+                    <h3>📸 已分析照片</h3>
+                    <img id="resultImage" style="max-width:100%;border-radius:12px;margin-top:8px;">
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>⚠️ 免责声明：本系统仅供参考，不构成医疗诊断。如有健康问题，请及时就医。</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
