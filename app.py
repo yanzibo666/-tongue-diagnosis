@@ -1,87 +1,95 @@
 """
-舌诊识别 Web 应用
-Flask 后端 + 舌象分析引擎
+中医舌诊识别系统 - 应用入口
+Flask 工厂模式 + 蓝图注册
 """
 import os
-import uuid
-from datetime import datetime
-from flask import Flask, request, jsonify, render_template, send_from_directory
-from werkzeug.utils import secure_filename
-from tongue_analyzer import analyze
-from tcm_knowledge import comprehensive_diagnosis
-
-app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
-app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
-
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp', 'gif', 'webp'}
+from flask import Flask, render_template, send_from_directory, jsonify
+from config import config
 
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def create_app(config_name=None):
+    """Flask 应用工厂函数"""
+    if config_name is None:
+        config_name = os.environ.get('FLASK_ENV', 'development')
+
+    app = Flask(__name__)
+    app.config.from_object(config.get(config_name, config['default']))
+
+    # 确保必要的目录存在
+    from config import Config
+    os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
+    os.makedirs(Config.THUMBNAIL_FOLDER, exist_ok=True)
+    os.makedirs(Config.INSTANCE_DIR, exist_ok=True)
+
+    # ---- 注册蓝图 ----
+    from routes.auth import auth_bp
+    from routes.analyze import analyze_bp
+    from routes.history import history_bp
+
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(analyze_bp)
+    app.register_blueprint(history_bp)
+
+    # ---- Web 前端路由（保留兼容）----
+    @app.route('/')
+    def index():
+        return render_template('index.html')
+
+    # 向后兼容：/analyze 重定向到 /api/analyze（旧版 Web 前端使用）
+    @app.route('/analyze', methods=['POST'])
+    def analyze_compat():
+        from routes.analyze import analyze_tongue
+        return analyze_tongue()
+
+    @app.route('/uploads/<filename>')
+    def uploaded_file(filename):
+        return send_from_directory(Config.UPLOAD_FOLDER, filename)
+
+    @app.route('/uploads/thumbnails/<filename>')
+    def uploaded_thumbnail(filename):
+        return send_from_directory(Config.THUMBNAIL_FOLDER, filename)
+
+    # ---- 健康检查 ----
+    @app.route('/api/health')
+    def health_check():
+        return {"status": "ok", "service": "tongue-diagnosis-ai"}
+
+    # ---- 全局错误处理：确保所有错误都返回 JSON ----
+    @app.errorhandler(400)
+    def bad_request(e):
+        return jsonify({"error": "请求参数错误"}), 400
+
+    @app.errorhandler(404)
+    def not_found(e):
+        return jsonify({"error": "接口不存在"}), 404
+
+    @app.errorhandler(405)
+    def method_not_allowed(e):
+        return jsonify({"error": "请求方法不允许"}), 405
+
+    @app.errorhandler(413)
+    def too_large(e):
+        return jsonify({"error": "上传文件过大"}), 413
+
+    @app.errorhandler(500)
+    def internal_error(e):
+        return jsonify({"error": "服务器内部错误，请稍后重试"}), 500
+
+    return app
 
 
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-
-@app.route('/analyze', methods=['POST'])
-def analyze_tongue():
-    """上传图片并分析舌象"""
-    if 'image' not in request.files:
-        return jsonify({"error": "未上传图片"}), 400
-
-    file = request.files['image']
-    if file.filename == '':
-        return jsonify({"error": "未选择文件"}), 400
-
-    if not allowed_file(file.filename):
-        return jsonify({"error": "不支持的图片格式，请使用 JPG/PNG/BMP"}), 400
-
-    # 保存上传的图片
-    ext = file.filename.rsplit('.', 1)[1].lower()
-    filename = f"{uuid.uuid4().hex}.{ext}"
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(filepath)
-
-    try:
-        # 分析舌象
-        features = analyze(filepath)
-
-        # 综合诊断
-        diagnosis = comprehensive_diagnosis(
-            tongue_color=features["tongue_color"],
-            coating_color=features["coating_color"],
-            coating_thickness=features["coating_thickness"],
-            tooth_mark_level=features["tooth_mark_level"],
-            crack_level=features["crack_level"]
-        )
-
-        return jsonify({
-            "success": True,
-            "features": features,
-            "diagnosis": diagnosis,
-            "image_url": f"/uploads/{filename}",
-            "timestamp": datetime.now().isoformat()
-        })
-
-    except Exception as e:
-        return jsonify({"error": f"分析失败: {str(e)}"}), 500
-
-
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-
+# ---- 直接运行入口 ----
 if __name__ == '__main__':
+    application = create_app()
     port = int(os.environ.get('PORT', 5000))
-    print("=" * 50)
-    print("  中医舌诊识别系统")
-    print("  Tongue Diagnosis System")
-    print("=" * 50)
-    print(f"  访问: http://0.0.0.0:{port}")
-    app.run(debug=False, host='0.0.0.0', port=port)
+    print("=" * 55)
+    print("  TCM Tongue Diagnosis System v2.0")
+    print("  AI Engine + CV + NLG")
+    print("=" * 55)
+    print(f"  URL:  http://0.0.0.0:{port}")
+    print(f"  API:  http://0.0.0.0:{port}/api/health")
+    print("=" * 55)
+    application.run(debug=False, host='0.0.0.0', port=port)
+else:
+    # WSGI 入口（gunicorn等）
+    application = create_app()
